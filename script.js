@@ -16,82 +16,78 @@ const progressBar = document.getElementById("progress");
 
 
 // Quiz Questions
-const quizQuestions = [
-  {
-    question: "What is the phenomenon where light bends as it passes from one medium to another?",
-    answers: [
-      { text: "Reflection", correct: false },
-      { text: "Diffraction", correct: false },
-      { text: "Refraction", correct: true },
-      { text: "Absorption", correct: false },
-    ],
-  },
-  {
-    question: "Who wrote the play 'Romeo and Juliet'?",
-    answers: [
-      { text: "Charles Dickens", correct: false },
-      { text: "William Shakespeare", correct: true },
-      { text: "Jane Austen", correct: false },
-      { text: "Leo Tolstoy", correct: false },
-    ],
-  },
-  {
-    question: "Which of the following is an example of a deciduous tree?",
-    answers: [
-      { text: "Pine", correct: false },
-      { text: "Spruce", correct: false },
-      { text: "Oak", correct: true },
-      { text: "Fir", correct: false },
-    ],
-  },
-  {
-    question: "In computing, what does 'CPU' stand for?",
-    answers: [
-      { text: "Central Processing Unit", correct: true },
-      { text: "Central Power Unit", correct: false },
-      { text: "Computer Personal Utility", correct: false },
-      { text: "Core Processing Utility", correct: false },
-    ],
-  },
-  {
-    question: "Which famous artist is known for cutting off part of his own ear?",
-    answers: [
-      { text: "Claude Monet", correct: false },
-      { text: "Pablo Picasso", correct: false },
-      { text: "Vincent van Gogh", correct: true },
-      { text: "Leonardo da Vinci", correct: false },
-    ],
-  },
-];
+let fetchedQuestions = []
 
 // Quiz State Vars
 let currentQuestionIndex = 0
 let score = 0
 let answerDisabled = false
 
-totalQuestionsSpan.textContent = quizQuestions.length
-maxScoreSpan.textContent = quizQuestions.length
+// This is our new function to fetch quiz question from Open Trivia Database API
+async function fetchAndStartQuiz() {
+  try {
+
+    // Fetching data from API
+    const response = await fetch('https://opentdb.com/api.php?amount=10&type=multiple')
+
+    // Checking if the response was successful
+    if(!response.ok) {
+      throw new Error(`Something went wrong with the network! Status: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    // Converting the API data into the format our app needs (the .map() transformation)
+    const formattedQuestions = data.results.map(apiQuestion => {
+      const incorrectAnswers = apiQuestion.incorrect_answers;
+      const correctAnswer = apiQuestion.correct_answer;
+
+      // Combine all answers into a single array
+      const allAnswers = [...incorrectAnswers, correctAnswer];
+
+      // We need to shuffle the answers so the correct one isn't always last
+      // This uses shuffle Array function
+      shuffleArray(allAnswers);
+
+      return {
+        question: decodeHTML(apiQuestion.question),
+        //We now map over the shuffled answers to create the final object structure
+        answers: allAnswers.map(answer => {
+          return {
+            text: decodeHTML(answer),
+            correct: answer === correctAnswer
+          };
+        })
+      };
+    });
+
+    // call a new function to actually start the with the formatted questions
+    startQuizWithData(formattedQuestions);
+
+  } catch (error) {
+    console.error("Failed to fetch quiz questions:", error);
+    alert("Could not load new questions. Please check your internet connection and try again.")
+  }
+}
+
+function startQuizWithData(questions) {
+
+  // This is our global variable where we store the fethched questions array
+  fetchedQuestions = questions;
+
+  totalQuestionsSpan.textContent = fetchedQuestions.length;
+  maxScoreSpan.textContent = fetchedQuestions.length;
+
+  startScreen.classList.remove("active");
+  quizScreen.classList.add("active");
+
+  showQuestion();
+}
 
 // Event Listeners
 
-startButton.addEventListener("click", startQuiz)
+startButton.addEventListener("click", fetchAndStartQuiz)
 restartButton.addEventListener("click", restartQuiz)
-
-function startQuiz() {
-
-    shuffleArray(quizQuestions);
-    
-    // Reset Variables
-    currentQuestionIndex = 0
-    score = 0
-    scoreSpan.textContent = 0
-
-    
-    startScreen.classList.remove("active")
-    quizScreen.classList.add("active")
-
-    showQuestion()
-}
 
 function shuffleArray(array) {
 
@@ -108,14 +104,14 @@ function showQuestion() {
     //Reset state
     answerDisabled = false;
 
-    const currentQuestion = quizQuestions[currentQuestionIndex];
+    const currentQuestion = fetchedQuestions[currentQuestionIndex];
 
     //  Shuffing Answers
     shuffleArray(currentQuestion.answers)
 
     currentQuestionSpan.textContent = currentQuestionIndex + 1;
 
-    const progressPrecent = (currentQuestionIndex / quizQuestions.length) * 100;
+    const progressPrecent = (currentQuestionIndex / fetchedQuestions.length) * 100;
     progressBar.style.width = progressPrecent + "%";
 
     questionText.textContent = currentQuestion.question;
@@ -162,7 +158,7 @@ function selectAnswer(event) {
         currentQuestionIndex++
 
         // Check if there are anymore questions
-        if(currentQuestionIndex < quizQuestions.length) {
+        if(currentQuestionIndex < fetchedQuestions.length) {
             showQuestion()
         } else {
             showResults()
@@ -176,7 +172,7 @@ function showResults() {
 
     finalScoreSpan.textContent = score
 
-    const percentage = (score / quizQuestions.length) * 100
+    const percentage = (score / fetchedQuestions.length) * 100
 
     if(percentage == 100) {
         resultMessage.textContent = "Perfect! You're a Genius!"
@@ -192,7 +188,22 @@ function showResults() {
 }
 
 function restartQuiz() {
+
+    currentQuestionIndex = 0;
+    score = 0;
+    fetchedQuestions = [];
+
+    scoreSpan.textContent = 0;
+    progressBar.style.width = "0%";
+    
     resultScreen.classList.remove("active")
     startScreen.classList.add("active")
     
+}
+
+// Helper function for decoding quotation marks
+function decodeHTML(html) {
+  const txt = document.createElement("textarea");
+  txt.innerHTML = html;
+  return txt.value;
 }
