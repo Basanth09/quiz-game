@@ -78,11 +78,14 @@ startButton.addEventListener("click", startQuiz)
 restartButton.addEventListener("click", restartQuiz)
 
 function startQuiz() {
+
+    shuffleArray(quizQuestions);
     
     // Reset Variables
     currentQuestionIndex = 0
     score = 0
     scoreSpan.textContent = 0
+
     
     startScreen.classList.remove("active")
     quizScreen.classList.add("active")
@@ -90,11 +93,25 @@ function startQuiz() {
     showQuestion()
 }
 
+function shuffleArray(array) {
+
+  for(let i=array.length-1; i>0; i--) {
+
+    const j = Math.floor(Math.random() * (i+1));
+
+    [array[i], array[j]] = [array[j], array[i]]
+  }
+}
+
 function showQuestion() {
+
     //Reset state
     answerDisabled = false;
 
     const currentQuestion = quizQuestions[currentQuestionIndex];
+
+    //  Shuffing Answers
+    shuffleArray(currentQuestion.answers)
 
     currentQuestionSpan.textContent = currentQuestionIndex + 1;
 
